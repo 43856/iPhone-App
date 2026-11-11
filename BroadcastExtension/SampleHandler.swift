@@ -31,6 +31,9 @@ final class SampleHandler: RPBroadcastSampleHandler {
         guard now.timeIntervalSince(lastWrite) >= interval else { return }
         lastWrite = now
 
+        // Während die KI-App selbst offen ist, das letzte "fremde" Bild behalten.
+        if FrameStore.isAppInForeground { return }
+
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
               let url = FrameStore.latestFrameURL else { return }
 

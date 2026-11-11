@@ -9,6 +9,19 @@ enum FrameStore {
         static let frameCount = "frameCount"
         static let broadcastActive = "broadcastActive"
         static let extensionStatus = "extensionStatus"
+        static let appHeartbeat = "appForegroundHeartbeat"
+    }
+
+    /// Die App meldet regelmäßig, dass sie im Vordergrund ist. Dann speichert die
+    /// Erweiterung keine neuen Bilder – sonst würde sie nur die App selbst "sehen".
+    static var appForegroundHeartbeat: Date? {
+        get { AppGroup.defaults.object(forKey: Key.appHeartbeat) as? Date }
+        set { AppGroup.defaults.set(newValue, forKey: Key.appHeartbeat) }
+    }
+
+    static var isAppInForeground: Bool {
+        guard let beat = appForegroundHeartbeat else { return false }
+        return Date().timeIntervalSince(beat) < 6
     }
 
     static var latestFrameURL: URL? {
