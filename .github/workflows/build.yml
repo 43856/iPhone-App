@@ -1,0 +1,66 @@
+name: App bauen
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode-Version anzeigen
+        run: xcodebuild -version
+
+      - name: XcodeGen installieren
+        run: brew install xcodegen
+
+      - name: Projekt erzeugen
+        run: xcodegen generate
+
+      - name: App bauen
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project KIAssistent.xcodeproj \
+            -scheme KIAssistent \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee xcodebuild.log | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)|\*\*" || true
+          grep -q "BUILD SUCCEEDED" xcodebuild.log
+
+      - name: Fehler anzeigen
+        if: failure()
+        run: |
+          grep -n -B2 -A6 "error:" xcodebuild.log | head -300 || tail -200 xcodebuild.log
+
+      - name: IPA packen
+        run: bash scripts/package_ipa.sh
+
+      - name: IPA hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: KIAssistent-ipa
+          path: build/KIAssistent.ipa
+          retention-days: 30
+
+      - name: Bau-Protokoll hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log
+          retention-days: 7
